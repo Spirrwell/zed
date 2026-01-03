@@ -77,11 +77,11 @@ pub fn register_requests(lsp_store: WeakEntity<LspStore>, language_server: &Lang
                         cx.background_spawn(async move {
                             let response = target_server
                                 .request::<lsp::request::ExecuteCommand>(
-                                    lsp::ExecuteCommandParams {
+                                    Some(lsp::ExecuteCommandParams {
                                         command: "typescript.tsserverRequest".to_owned(),
                                         arguments: vec![Value::String(command), payload],
                                         ..Default::default()
-                                    },
+                                    }),
                                 )
                                 .await;
 

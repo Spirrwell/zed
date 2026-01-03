@@ -553,9 +553,9 @@ impl Copilot {
                 .context("copilot: did change configuration")?;
 
             let status = server
-                .request::<request::CheckStatus>(request::CheckStatusParams {
+                .request::<request::CheckStatus>(Some(request::CheckStatusParams {
                     local_checks_only: false,
-                })
+                }))
                 .await
                 .into_response()
                 .context("copilot: check status")?;
@@ -619,9 +619,9 @@ impl Copilot {
                         .spawn(async move |this, cx| {
                             let sign_in = async {
                                 let sign_in = lsp
-                                    .request::<request::SignInInitiate>(
+                                    .request::<request::SignInInitiate>(Some(
                                         request::SignInInitiateParams {},
-                                    )
+                                    ))
                                     .await
                                     .into_response()
                                     .context("copilot sign-in")?;
@@ -645,11 +645,11 @@ impl Copilot {
                                             }
                                         })?;
                                         let response = lsp
-                                            .request::<request::SignInConfirm>(
+                                            .request::<request::SignInConfirm>(Some(
                                                 request::SignInConfirmParams {
                                                     user_code: flow.user_code,
                                                 },
-                                            )
+                                            ))
                                             .await
                                             .into_response()
                                             .context("copilot: sign in confirm")?;
@@ -698,7 +698,7 @@ impl Copilot {
                 let server = server.clone();
                 cx.background_spawn(async move {
                     server
-                        .request::<request::SignOut>(request::SignOutParams {})
+                        .request::<request::SignOut>(Some(request::SignOutParams {}))
                         .await
                         .into_response()
                         .context("copilot: sign in confirm")?;
@@ -909,10 +909,10 @@ impl Copilot {
         cx.background_spawn(async move {
             let (version, snapshot) = snapshot.await?;
             let result = lsp
-                .request::<NextEditSuggestions>(request::NextEditSuggestionsParams {
+                .request::<NextEditSuggestions>(Some(request::NextEditSuggestionsParams {
                     text_document: lsp::VersionedTextDocumentIdentifier { uri, version },
                     position: point_to_lsp(position),
-                })
+                }))
                 .await
                 .into_response()
                 .context("copilot: get completions")?;
@@ -947,13 +947,14 @@ impl Copilot {
             Err(error) => return Task::ready(Err(error)),
         };
         if let Some(command) = &completion.command {
-            let request = server
-                .lsp
-                .request::<lsp::ExecuteCommand>(lsp::ExecuteCommandParams {
-                    command: command.command.clone(),
-                    arguments: command.arguments.clone().unwrap_or_default(),
-                    ..Default::default()
-                });
+            let request =
+                server
+                    .lsp
+                    .request::<lsp::ExecuteCommand>(Some(lsp::ExecuteCommandParams {
+                        command: command.command.clone(),
+                        arguments: command.arguments.clone().unwrap_or_default(),
+                        ..Default::default()
+                    }));
             cx.background_spawn(async move {
                 request
                     .await

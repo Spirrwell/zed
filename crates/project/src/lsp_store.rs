@@ -2001,13 +2001,13 @@ impl LocalLspStore {
                             })?;
 
                             let execute_command_result = server
-                                .request::<lsp::request::ExecuteCommand>(
+                                .request::<lsp::request::ExecuteCommand>(Some(
                                     lsp::ExecuteCommandParams {
                                         command: command.command.clone(),
                                         arguments: command.arguments.clone().unwrap_or_default(),
                                         ..Default::default()
                                     },
-                                )
+                                ))
                                 .await
                                 .into_response();
 
@@ -2129,12 +2129,14 @@ impl LocalLspStore {
             let mut edits = None;
             for range in lsp_ranges {
                 if let Some(mut edit) = language_server
-                    .request::<lsp::request::RangeFormatting>(lsp::DocumentRangeFormattingParams {
-                        text_document: text_document.clone(),
-                        range,
-                        options: lsp_command::lsp_formatting_options(settings),
-                        work_done_progress_params: Default::default(),
-                    })
+                    .request::<lsp::request::RangeFormatting>(Some(
+                        lsp::DocumentRangeFormattingParams {
+                            text_document: text_document.clone(),
+                            range,
+                            options: lsp_command::lsp_formatting_options(settings),
+                            work_done_progress_params: Default::default(),
+                        },
+                    ))
                     .await
                     .into_response()?
                 {
@@ -2181,11 +2183,11 @@ impl LocalLspStore {
         let lsp_edits = if matches!(formatting_provider, Some(p) if *p != OneOf::Left(false)) {
             let _timer = zlog::time!(logger => "format-full");
             language_server
-                .request::<lsp::request::Formatting>(lsp::DocumentFormattingParams {
+                .request::<lsp::request::Formatting>(Some(lsp::DocumentFormattingParams {
                     text_document,
                     options: lsp_command::lsp_formatting_options(settings),
                     work_done_progress_params: Default::default(),
-                })
+                }))
                 .await
                 .into_response()?
         } else if matches!(range_formatting_provider, Some(p) if *p != OneOf::Left(false)) {
@@ -2193,12 +2195,14 @@ impl LocalLspStore {
             let buffer_start = lsp::Position::new(0, 0);
             let buffer_end = buffer.read_with(cx, |b, _| point_to_lsp(b.max_point_utf16()))?;
             language_server
-                .request::<lsp::request::RangeFormatting>(lsp::DocumentRangeFormattingParams {
-                    text_document: text_document.clone(),
-                    range: lsp::Range::new(buffer_start, buffer_end),
-                    options: lsp_command::lsp_formatting_options(settings),
-                    work_done_progress_params: Default::default(),
-                })
+                .request::<lsp::request::RangeFormatting>(Some(
+                    lsp::DocumentRangeFormattingParams {
+                        text_document: text_document.clone(),
+                        range: lsp::Range::new(buffer_start, buffer_end),
+                        options: lsp_command::lsp_formatting_options(settings),
+                        work_done_progress_params: Default::default(),
+                    },
+                ))
                 .await
                 .into_response()?
         } else {
@@ -2302,7 +2306,9 @@ impl LocalLspStore {
                     && (lsp_action.command.is_none() || lsp_action.edit.is_none())
                 {
                     **lsp_action = lang_server
-                        .request::<lsp::request::CodeActionResolveRequest>(*lsp_action.clone())
+                        .request::<lsp::request::CodeActionResolveRequest>(Some(
+                            *lsp_action.clone(),
+                        ))
                         .await
                         .into_response()?;
                 }
@@ -2310,7 +2316,7 @@ impl LocalLspStore {
             LspAction::CodeLens(lens) => {
                 if !action.resolved && GetCodeLens::can_resolve_lens(&lang_server.capabilities()) {
                     *lens = lang_server
-                        .request::<lsp::request::CodeLensResolve>(lens.clone())
+                        .request::<lsp::request::CodeLensResolve>(Some(lens.clone()))
                         .await
                         .into_response()?;
                 }
@@ -2916,11 +2922,11 @@ impl LocalLspStore {
                     })?;
 
                     language_server
-                        .request::<lsp::request::ExecuteCommand>(lsp::ExecuteCommandParams {
+                        .request::<lsp::request::ExecuteCommand>(Some(lsp::ExecuteCommandParams {
                             command: command.command.clone(),
                             arguments: command.arguments.clone().unwrap_or_default(),
                             ..Default::default()
-                        })
+                        }))
                         .await
                         .into_response()
                         .context("execute command")?;
@@ -4793,7 +4799,7 @@ impl LspStore {
             return Task::ready(Ok(Default::default()));
         }
         cx.spawn(async move |this, cx| {
-            let lsp_request = language_server.request::<R::LspRequest>(lsp_params);
+            let lsp_request = language_server.request::<R::LspRequest>(Some(lsp_params));
 
             let id = lsp_request.id();
             let _cleanup = if status.is_some() {
@@ -5101,11 +5107,11 @@ impl LspStore {
                         })?;
 
                         let _result = lang_server
-                            .request::<lsp::request::ExecuteCommand>(lsp::ExecuteCommandParams {
+                            .request::<lsp::request::ExecuteCommand>(Some(lsp::ExecuteCommandParams {
                                 command: command.command.clone(),
                                 arguments: command.arguments.clone().unwrap_or_default(),
                                 ..lsp::ExecuteCommandParams::default()
-                            })
+                            }))
                             .await.into_response()
                             .context("execute command")?;
 
@@ -5288,7 +5294,7 @@ impl LspStore {
             let buffer_snapshot = buffer.read(cx).snapshot();
             cx.spawn(async move |_, cx| {
                 let resolve_task = lang_server.request::<lsp::request::InlayHintResolveRequest>(
-                    InlayHints::project_to_lsp_hint(hint, &buffer_snapshot),
+                    Some(InlayHints::project_to_lsp_hint(hint, &buffer_snapshot)),
                 );
                 let resolved_hint = resolve_task
                     .await
@@ -5380,13 +5386,13 @@ impl LspStore {
             };
             cx.background_spawn(async move {
                 let resolve_task = lang_server.request::<lsp::request::ColorPresentationRequest>(
-                    lsp::ColorPresentationParams {
+                    Some(lsp::ColorPresentationParams {
                         text_document: make_text_document_identifier(&path)?,
                         color: color.color,
                         range: color.lsp_range,
                         work_done_progress_params: Default::default(),
                         partial_result_params: Default::default(),
-                    },
+                    }),
                 );
                 color.color_presentations = resolve_task
                     .await
@@ -6465,7 +6471,9 @@ impl LspStore {
                         server_id == *completion_server_id,
                         "server_id mismatch, querying completion resolve for {server_id} but completion server id is {completion_server_id}"
                     );
-                    server.request::<lsp::request::ResolveCompletionItem>(*lsp_completion.clone())
+                    server.request::<lsp::request::ResolveCompletionItem>(Some(
+                        *lsp_completion.clone(),
+                    ))
                 }
                 CompletionSource::BufferWord { .. }
                 | CompletionSource::Dap { .. }
@@ -7776,10 +7784,10 @@ impl LspStore {
                 requests.push(
                         server
                             .request::<lsp::request::WorkspaceSymbolRequest>(
-                                lsp::WorkspaceSymbolParams {
+                                Some(lsp::WorkspaceSymbolParams {
                                     query: query.to_string(),
                                     ..Default::default()
-                                },
+                                }),
                             )
                             .map(move |response| {
                                 let lsp_symbols = response.into_response()
@@ -9800,9 +9808,9 @@ impl LspStore {
                             let language_server = language_server.clone();
                             async move |this, cx| {
                                 let edit = language_server
-                                    .request::<WillRenameFiles>(RenameFilesParams {
+                                    .request::<WillRenameFiles>(Some(RenameFilesParams {
                                         files: vec![FileRename { old_uri, new_uri }],
-                                    })
+                                    }))
                                     .await
                                     .into_response()
                                     .context("will rename files")
@@ -10124,7 +10132,7 @@ impl LspStore {
                         .unwrap_or(false);
                     if can_resolve {
                         server
-                            .request::<lsp::request::ResolveCompletionItem>(lsp_completion)
+                            .request::<lsp::request::ResolveCompletionItem>(Some(lsp_completion))
                             .await
                             .into_response()
                             .context("resolve completion item")
@@ -13169,14 +13177,14 @@ fn lsp_workspace_diagnostics_refresh(
                 let progress = pin!(progress_rx.recv().fuse());
                 let response_result = server
                     .request_with_timer::<lsp::WorkspaceDiagnosticRequest, _>(
-                        lsp::WorkspaceDiagnosticParams {
+                        Some(lsp::WorkspaceDiagnosticParams {
                             previous_result_ids,
                             identifier: identifier.clone(),
                             work_done_progress_params: Default::default(),
                             partial_result_params: lsp::PartialResultParams {
                                 partial_result_token: Some(lsp::ProgressToken::String(token)),
                             },
-                        },
+                        }),
                         select(timer, progress).then(|either| match either {
                             Either::Left((message, ..)) => ready(message).left_future(),
                             Either::Right(..) => pending::<String>().right_future(),

@@ -208,7 +208,8 @@ pub struct Request<'a, T> {
     jsonrpc: &'static str,
     id: RequestId,
     method: &'a str,
-    params: T,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    params: Option<T>,
 }
 
 /// Language server protocol RPC request response message before it is deserialized into a concrete type.
@@ -916,7 +917,7 @@ impl LanguageServer {
     ) -> Task<Result<Arc<Self>>> {
         cx.background_spawn(async move {
             let response = self
-                .request::<request::Initialize>(params)
+                .request::<request::Initialize>(Some(params))
                 .await
                 .into_response()
                 .with_context(|| {
@@ -953,7 +954,7 @@ impl LanguageServer {
                 &outbound_tx,
                 &notification_serializers,
                 &executor,
-                (),
+                None,
             );
 
             let server = self.server.clone();
@@ -1204,7 +1205,7 @@ impl LanguageServer {
     /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage)
     pub fn request<T: request::Request>(
         &self,
-        params: T::Params,
+        params: Option<T::Params>,
     ) -> impl LspRequestFuture<T::Result> + use<T>
     where
         T::Result: 'static + Send,
@@ -1225,7 +1226,7 @@ impl LanguageServer {
     /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage)
     pub fn request_with_timer<T: request::Request, U: Future<Output = String>>(
         &self,
-        params: T::Params,
+        params: Option<T::Params>,
         timer: U,
     ) -> impl LspRequestFuture<T::Result> + use<T, U>
     where
@@ -1249,7 +1250,7 @@ impl LanguageServer {
         notification_serializers: &channel::Sender<NotificationSerializer>,
         executor: &BackgroundExecutor,
         timer: U,
-        params: T::Params,
+        params: Option<T::Params>,
     ) -> impl LspRequestFuture<T::Result> + use<T, U>
     where
         T::Result: 'static + Send,
@@ -1349,7 +1350,7 @@ impl LanguageServer {
         outbound_tx: &channel::Sender<String>,
         notification_serializers: &channel::Sender<NotificationSerializer>,
         executor: &BackgroundExecutor,
-        params: T::Params,
+        params: Option<T::Params>,
     ) -> impl LspRequestFuture<T::Result> + use<T>
     where
         T::Result: 'static + Send,
@@ -1740,7 +1741,7 @@ impl FakeLanguageServer {
     }
 
     /// See [`LanguageServer::request`].
-    pub async fn request<T>(&self, params: T::Params) -> ConnectionResult<T::Result>
+    pub async fn request<T>(&self, params: Option<T::Params>) -> ConnectionResult<T::Result>
     where
         T: request::Request,
         T::Result: 'static + Send,
