@@ -264,7 +264,7 @@ impl RegisteredBuffer {
                             buffer.snapshot = new_snapshot;
                             server
                                 .lsp
-                                .notify::<lsp::notification::DidChangeTextDocument>(
+                                .notify::<lsp::notification::DidChangeTextDocument>(Some(
                                     lsp::DidChangeTextDocumentParams {
                                         text_document: lsp::VersionedTextDocumentIdentifier::new(
                                             buffer.uri.clone(),
@@ -272,7 +272,7 @@ impl RegisteredBuffer {
                                         ),
                                         content_changes,
                                     },
-                                )
+                                ))
                                 .ok();
                         }
                         let _ = done_tx.send((buffer.snapshot_version, buffer.snapshot.clone()));
@@ -769,7 +769,7 @@ impl Copilot {
                 let language_id = id_for_language(buffer.read(cx).language());
                 let snapshot = buffer.read(cx).snapshot();
                 server
-                    .notify::<lsp::notification::DidOpenTextDocument>(
+                    .notify::<lsp::notification::DidOpenTextDocument>(Some(
                         lsp::DidOpenTextDocumentParams {
                             text_document: lsp::TextDocumentItem {
                                 uri: uri.clone(),
@@ -778,7 +778,7 @@ impl Copilot {
                                 text: snapshot.text(),
                             },
                         },
-                    )
+                    ))
                     .ok();
 
                 e.insert(RegisteredBuffer {
@@ -817,14 +817,14 @@ impl Copilot {
                 language::BufferEvent::Saved => {
                     server
                         .lsp
-                        .notify::<lsp::notification::DidSaveTextDocument>(
+                        .notify::<lsp::notification::DidSaveTextDocument>(Some(
                             lsp::DidSaveTextDocumentParams {
                                 text_document: lsp::TextDocumentIdentifier::new(
                                     registered_buffer.uri.clone(),
                                 ),
                                 text: None,
                             },
-                        )
+                        ))
                         .ok();
                 }
                 language::BufferEvent::FileHandleChanged
@@ -840,15 +840,15 @@ impl Copilot {
                         registered_buffer.language_id = new_language_id;
                         server
                             .lsp
-                            .notify::<lsp::notification::DidCloseTextDocument>(
+                            .notify::<lsp::notification::DidCloseTextDocument>(Some(
                                 lsp::DidCloseTextDocumentParams {
                                     text_document: lsp::TextDocumentIdentifier::new(old_uri),
                                 },
-                            )
+                            ))
                             .ok();
                         server
                             .lsp
-                            .notify::<lsp::notification::DidOpenTextDocument>(
+                            .notify::<lsp::notification::DidOpenTextDocument>(Some(
                                 lsp::DidOpenTextDocumentParams {
                                     text_document: lsp::TextDocumentItem::new(
                                         registered_buffer.uri.clone(),
@@ -857,7 +857,7 @@ impl Copilot {
                                         registered_buffer.snapshot.text(),
                                     ),
                                 },
-                            )
+                            ))
                             .ok();
                     }
                 }
@@ -874,11 +874,11 @@ impl Copilot {
         {
             server
                 .lsp
-                .notify::<lsp::notification::DidCloseTextDocument>(
+                .notify::<lsp::notification::DidCloseTextDocument>(Some(
                     lsp::DidCloseTextDocumentParams {
                         text_document: lsp::TextDocumentIdentifier::new(buffer.uri),
                     },
-                )
+                ))
                 .ok();
         }
     }
@@ -1114,9 +1114,9 @@ fn notify_did_change_config_to_server(
     });
 
     server
-        .notify::<lsp::notification::DidChangeConfiguration>(lsp::DidChangeConfigurationParams {
-            settings,
-        })
+        .notify::<lsp::notification::DidChangeConfiguration>(Some(
+            lsp::DidChangeConfigurationParams { settings },
+        ))
         .ok();
     Ok(())
 }

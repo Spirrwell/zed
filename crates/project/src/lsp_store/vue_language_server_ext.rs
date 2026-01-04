@@ -64,7 +64,7 @@ pub fn register_requests(lsp_store: WeakEntity<LspStore>, language_server: &Lang
                                     .map(|(id, _, _)| (id, Value::Null))
                                     .collect::<Vec<_>>();
                                 let _ = vue_server
-                                    .notify::<TypescriptServerResponse>(null_responses);
+                                    .notify::<TypescriptServerResponse>(Some(null_responses));
                             }
                             return;
                         }
@@ -108,7 +108,7 @@ pub fn register_requests(lsp_store: WeakEntity<LspStore>, language_server: &Lang
                             };
 
                             if let Err(err) = vue_server
-                                .notify::<TypescriptServerResponse>(vec![(request_id, response_body)])
+                                .notify::<TypescriptServerResponse>(Some(vec![(request_id, response_body)]))
                             {
                                 log::warn!(
                                     "Failed to notify vue-language-server of tsserver response: {err:?}"

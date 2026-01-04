@@ -540,9 +540,9 @@ impl LocalLspStore {
                             }
                         })?;
 
-                    language_server.notify::<lsp::notification::DidChangeConfiguration>(
+                    language_server.notify::<lsp::notification::DidChangeConfiguration>(Some(
                         did_change_configuration_params,
-                    )?;
+                    ))?;
 
                     anyhow::Ok(language_server)
                 }
@@ -8055,7 +8055,7 @@ impl LspStore {
             });
 
             language_server
-                .notify::<lsp::notification::DidChangeTextDocument>(
+                .notify::<lsp::notification::DidChangeTextDocument>(Some(
                     lsp::DidChangeTextDocumentParams {
                         text_document: lsp::VersionedTextDocumentIdentifier::new(
                             uri.clone(),
@@ -8063,7 +8063,7 @@ impl LspStore {
                         ),
                         content_changes,
                     },
-                )
+                ))
                 .ok();
             self.pull_workspace_diagnostics(language_server.server_id());
         }
@@ -8092,12 +8092,12 @@ impl LspStore {
                     None
                 };
                 server
-                    .notify::<lsp::notification::DidSaveTextDocument>(
+                    .notify::<lsp::notification::DidSaveTextDocument>(Some(
                         lsp::DidSaveTextDocumentParams {
                             text_document: text_document.clone(),
                             text,
                         },
-                    )
+                    ))
                     .ok();
             }
         }
@@ -8165,7 +8165,9 @@ impl LspStore {
                                             .ok()?;
                                         server
                                             .notify::<lsp::notification::DidChangeConfiguration>(
-                                                lsp::DidChangeConfigurationParams { settings },
+                                                Some(lsp::DidChangeConfigurationParams {
+                                                    settings,
+                                                }),
                                             )
                                             .ok()?;
                                         Some(())
@@ -9556,7 +9558,7 @@ impl LspStore {
         let server_id = LanguageServerId(envelope.payload.language_server_id as usize);
         let task = lsp_store.read_with(&cx, |lsp_store, _| {
             if let Some(server) = lsp_store.language_server_for_id(server_id) {
-                Some(server.notify::<lsp_store::lsp_ext_command::LspExtCancelFlycheck>(()))
+                Some(server.notify::<lsp_store::lsp_ext_command::LspExtCancelFlycheck>(None))
             } else {
                 None
             }
@@ -9597,9 +9599,9 @@ impl LspStore {
                 } else {
                     None
                 };
-                server.notify::<lsp_store::lsp_ext_command::LspExtRunFlycheck>(
+                server.notify::<lsp_store::lsp_ext_command::LspExtRunFlycheck>(Some(
                     lsp_store::lsp_ext_command::RunFlycheckParams { text_document },
-                )?;
+                ))?;
             }
             anyhow::Ok(())
         })??;
@@ -9616,7 +9618,7 @@ impl LspStore {
         lsp_store
             .read_with(&cx, |lsp_store, _| {
                 if let Some(server) = lsp_store.language_server_for_id(server_id) {
-                    Some(server.notify::<lsp_store::lsp_ext_command::LspExtClearFlycheck>(()))
+                    Some(server.notify::<lsp_store::lsp_ext_command::LspExtClearFlycheck>(None))
                 } else {
                     None
                 }
@@ -9760,12 +9762,12 @@ impl LspStore {
 
                 if filter.should_send_did_rename(&old_uri, is_dir) {
                     language_server
-                        .notify::<DidRenameFiles>(RenameFilesParams {
+                        .notify::<DidRenameFiles>(Some(RenameFilesParams {
                             files: vec![FileRename {
                                 old_uri: old_uri.clone(),
                                 new_uri: new_uri.clone(),
                             }],
-                        })
+                        }))
                         .ok();
                 }
             }
@@ -9873,9 +9875,9 @@ impl LspStore {
                 .collect::<Vec<_>>();
             if !changes.is_empty() {
                 server
-                    .notify::<lsp::notification::DidChangeWatchedFiles>(
+                    .notify::<lsp::notification::DidChangeWatchedFiles>(Some(
                         lsp::DidChangeWatchedFilesParams { changes },
-                    )
+                    ))
                     .ok();
             }
             Some(())
@@ -11682,11 +11684,11 @@ impl LspStore {
                     }
                     if progress.is_cancellable {
                         server
-                            .notify::<lsp::notification::WorkDoneProgressCancel>(
+                            .notify::<lsp::notification::WorkDoneProgressCancel>(Some(
                                 WorkDoneProgressCancelParams {
                                     token: token.to_lsp(),
                                 },
-                            )
+                            ))
                             .ok();
                     }
                 }
@@ -11814,7 +11816,7 @@ impl LspStore {
                 };
                 if !params.changes.is_empty() {
                     server
-                        .notify::<lsp::notification::DidChangeWatchedFiles>(params)
+                        .notify::<lsp::notification::DidChangeWatchedFiles>(Some(params))
                         .ok();
                 }
             }
